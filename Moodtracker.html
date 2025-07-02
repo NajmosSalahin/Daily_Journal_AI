@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Health Journal with AI Insights</title>
+
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
+
+    <!-- Marked.js for Markdown parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.0.1/marked.min.js"></script>
+
+    <style>
+        /* Custom styles to enhance the UI */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7fafc;
+        }
+        .journal-title {
+            font-family: 'Lora', serif;
+        }
+        .tab {
+            transition: all 0.3s ease;
+        }
+        .tab-active {
+            border-color: #4f46e5;
+            color: #4f46e5;
+            background-color: #eef2ff;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #a0aec0;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: #4f46e5;
+            animation: spin 1s ease infinite;
+        }
+        .ai-button {
+            background-color: #818cf8;
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.375rem;
+            border: none;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-weight: 500;
+            transition: background-color 0.2s;
+            margin-left: 0.5rem;
+        }
+        .ai-button:hover {
+            background-color: #4f46e5;
+        }
+        /* Styles for collapsible saved entries */
+        .entry-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease-in-out;
+        }
+        .entry-content.expanded {
+            max-height: fit-content; /* Adjust based on content, or a very large px value */
+        }
+        /* Style for the AI generated output to make text larger */
+        #journalOutput p {
+            font-size: 1.125rem; /* Equivalent to text-lg in Tailwind */
+            line-height: 1.75rem; /* Equivalent to leading-relaxed in Tailwind */
+        }
+
+        /* Styles for collapsible form sections */
+        .collapsible-header {
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            background-color: #f3f4f6;
+            border-bottom: 1px solid #e5e7eb;
+            border-top-left-radius: 0.75rem;
+            border-top-right-radius: 0.75rem;
+            margin-bottom: 0.5rem;
+            font-size: 1.25rem; /* text-xl */
+            font-weight: 600; /* font-semibold */
+            color: #4b5563; /* text-gray-700 */
+        }
+        .collapsible-header:hover {
+            background-color: #e5e7eb;
+        }
+        .collapsible-icon {
+            transition: transform 0.3s ease;
+        }
+        .collapsible-icon.rotated {
+            transform: rotate(90deg);
+        }
+        .collapsible-content {
+            max-height: 1000px; /* Arbitrary large value to allow content to expand */
+            overflow: hidden;
+            transition: max-height 0.5s ease-in-out;
+            padding: 1.5rem; /* p-6 */
+            border: 1px solid #e5e7eb; /* border border-gray-200 */
+            border-radius: 0.75rem; /* rounded-xl */
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); /* shadow-sm */
+            margin-top: -0.5rem; /* Adjust for header margin-bottom */
+            background-color: #ffffff; /* bg-white */
+        }
+        .collapsible-content.collapsed {
+            max-height: 0;
+            padding-top: 0;
+            padding-bottom: 0;
+            border: none;
+            box-shadow: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <div class="container mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
+
+        <header class="text-center mb-8">
+            <h1 class="text-4xl md:text-5xl font-bold journal-title text-gray-800">My Health Journal</h1>
+            <p class="mt-2 text-lg text-gray-600">Your personal space for reflection and growth.</p>
+        </header>
+
+        <!-- Tabs for navigation -->
+        <div class="mb-6 border-b border-gray-200">
+            <nav class="flex flex-wrap -mb-px" aria-label="Tabs">
+                <button onclick="switchTab('journal')" id="tab-journal" class="tab tab-active text-lg font-medium py-3 px-5 border-b-2">
+                    New Entry
+                </button>
+                <button onclick="switchTab('saved')" id="tab-saved" class="tab text-lg font-medium py-3 px-5 border-b-2 border-transparent hover:border-gray-300">
+                    Saved Entries
+                </button>
+                <button onclick="switchTab('guided')" id="tab-guided" class="tab text-lg font-medium py-3 px-5 border-b-2 border-transparent hover:border-gray-300">
+                    Guided Journaling
+                </button>
+            </nav>
+        </div>
+
+        <!-- Main Content Area -->
+        <main>
+            <!-- Journal Entry Form Tab -->
+            <div id="content-journal">
+                <form id="healthJournalForm" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2 space-y-6">
+                        <div id="form-fields-container" class="space-y-6"></div>
+                    </div>
+                    <div class="lg:col-span-1">
+                        <div class="sticky top-6 space-y-6">
+                            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                                <h2 class="text-2xl font-semibold mb-4 text-gray-700">Ready?</h2>
+                                <p class="mb-6 text-gray-600">Once you've filled out your entry, the AI will generate an insightful analysis of your day.</p>
+                                <button type="submit" class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                    Generate & Save Journal Entry
+                                </button>
+                                <!-- New Combined AI Recommendations Button -->
+                                <button type="button" onclick="getCombinedAIRecommendations()" class="w-full bg-purple-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-purple-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 mt-4">
+                                    ✨ Get Daily Recommendations
+                                </button>
+                                <div id="loading" class="hidden justify-center items-center mt-4 space-x-2">
+                                    <div class="spinner"></div>
+                                    <span class="text-gray-600">Analyzing your day...</span>
+                                </div>
+                            </div>
+                            <!-- AI Generated Output -->
+                            <div id="journalOutput" class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 space-y-4 hidden prose prose-indigo max-w-none text-lg leading-relaxed">
+                                <div id="aiSummaryContent"></div>
+                                <div id="aiInsightContent" class="mt-4 pt-4 border-t border-gray-200"></div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Saved Entries Tab -->
+            <div id="content-saved" class="hidden">
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                    <h2 class="text-2xl font-semibold mb-4 text-gray-700">Your Saved Journal Entries</h2>
+                    <p class="text-gray-600 mb-6">Here you can review and delete your past entries. Click on an entry to see the full details.</p>
+
+                    <!-- Search and Filter Section -->
+                    <div class="mb-4 flex flex-col sm:flex-row gap-4">
+                        <input type="text" id="entrySearchInput" onkeyup="filterEntries()" placeholder="Search entries..." class="flex-grow px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                        <input type="date" id="entryFilterDate" onchange="filterEntries()" class="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                        <button onclick="clearFilters()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md shadow-sm hover:bg-gray-300 transition-colors duration-300">Clear Filters</button>
+                    </div>
+
+                    <div id="savedEntriesContainer" class="space-y-4">
+                        <!-- The "No saved entries found" paragraph will be managed by JavaScript now -->
+                    </div>
+                     <!-- Export Button -->
+                    <button onclick="exportEntries()" class="mt-6 w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Export All Entries
+                    </button>
+                </div>
+            </div>
+
+            <!-- Guided Journaling Tab -->
+            <div id="content-guided" class="hidden">
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                    <h2 class="text-2xl font-semibold mb-4 text-gray-700">Guided Journaling Session</h2>
+                    <p class="text-gray-600 mb-6">Start a conversation with the AI to reflect deeper on your thoughts and feelings.</p>
+                    <div id="guidedConversationDisplay" class="h-96 overflow-y-auto custom-scrollbar p-4 border border-gray-200 rounded-md mb-4 bg-gray-50 space-y-4 flex flex-col">
+                        <!-- Conversation will appear here -->
+                        <div class="text-gray-500 italic">Start by typing your thoughts below and click "Get AI Follow-up Question".</div>
+                    </div>
+                    <textarea id="userGuidedInput" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" rows="4" placeholder="Type your thoughts or answers here..."></textarea>
+                    <button onclick="getGuidedQuestion()" class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 mt-4">
+                        Get AI Follow-up Question
+                    </button>
+                     <div id="guidedLoading" class="hidden justify-center items-center mt-4 space-x-2">
+                        <div class="spinner"></div>
+                        <span class="text-gray-600">AI is thinking...</span>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- AI Explanation Modal (now used for all AI generated modals) -->
+    <div id="aiExplanationModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+        <div class="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+            <div class="mt-3">
+                <h3 class="text-lg leading-6 font-medium text-gray-900 text-center" id="modalTitle"></h3>
+                <div class="mt-2 px-7 py-3">
+                    <!-- Adjusted font size for modal body content -->
+                    <div id="modalBody" class="text-base text-gray-600 text-left prose max-w-none"></div>
+                </div>
+                <div class="items-center px-4 py-3">
+                    <button id="closeModal" class="px-4 py-2 bg-indigo-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main JavaScript Logic -->
+    <script>
+        let journalDataCache = [];
+        const LOCAL_STORAGE_KEY = 'healthJournalEntries';
+        let guidedChatHistory = []; // For guided journaling
+
+        // --- LOCAL STORAGE FUNCTIONS ---
+        // Function to load journal entries from local storage
+        function loadJournalEntries() {
+            try {
+                const storedData = localStorage.getItem(LOCAL_STORAGE_KEY);
+                return storedData ? JSON.parse(storedData) : [];
+            } catch (error) {
+                console.error("Error loading from local storage:", error);
+                return [];
+            }
+        }
+
+        // Function to save journal entries to local storage
+        function saveJournalEntries(data) {
+            try {
+                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
+                console.log("Data saved to local storage.");
+            } catch (error) {
+                console.error("Error saving to local storage:", error);
+                // In a real app, you might want to show a user-friendly error message
+            }
+        }
+
+        // --- COMPREHENSIVE DYNAMIC FORM STRUCTURE ---
+        const formStructure = {
+            "👤 Personal Identification": {
+                fullName: { label: "Full Name:", type: "text" },
+                age: { label: "Age (Years):", type: "number" },
+                biologicalSex: { label: "Biological Sex:", type: "radio", options: ["Male", "Female", "Other"] },
+                genderIdentity: { label: "Gender Identity:", type: "select", options: [{value: "Woman"}, {value: "Man"}, {value: "Non-binary"}, {value: "Genderfluid"}, {value: "Agender"}, {value: "Questioning"}, {value: "Other"}], hasOther: true, aiHelp: true },
+                bloodType: { label: "Blood Type:", type: "select", options: [{value: "A+"}, {value: "A-"}, {value: "B+"}, {value: "B-"}, {value: "AB+"}, {value: "AB-"}, {value: "O+"}, {value: "O-"}], aiHelp: true },
+                weight: { label: "Weight (kg):", type: "number", step: "0.1" },
+                height: { label: "Height (cm):", type: "number", step: "0.1" },
+                ethnicity: { label: "Ethnicity:", type: "select", options: [{value: "Asian"}, {value: "Black or African American"}, {value: "White"}, {value: "Hispanic or Latino"}, {value: "Native American or Alaska Native"}, {value: "Native Hawaiian or Pacific Islander"}, {value: "Two or More Races"}, {value: "Other"}], hasOther: true, aiHelp: true },
+                dominantHand: { label: "Dominant Hand:", type: "radio", options: ["Left", "Right", "Ambidextrous"] },
+            },
+            "😊 Mental & Emotional Health": {
+                moodRate: { label: "Rate your mood (1-10):", type: "select", options: [...Array(10).keys()].map(i => ({ value: i + 1, text: `${i+1}` })), aiHelp: true },
+                moodDescribe: { label: "Describe your mood in words:", type: "textarea" },
+                feltEmotions: { label: "Felt emotions today (e.g., joy, anger, anxiety):", type: "textarea", aiHelp: true },
+                mentalClarity: { label: "Level of mental clarity (1-10):", type: "select", options: [...Array(10).keys()].map(i => ({ value: i + 1, text: `${i+1}` })), aiHelp: true },
+                anxietyRate: { label: "Rate your anxiety (1-10):", type: "select", options: [...Array(10).keys()].map(i => ({ value: i + 1, text: `${i+1}` })), aiHelp: true },
+                motivationLevel: { label: "Level of motivation today (1-10):", type: "select", options: [...Array(10).keys()].map(i => ({ value: i + 1, text: `${i+1}` })), aiHelp: true },
+                emotionalTriggers: { label: "Emotional triggers today:", type: "textarea", aiHelp: true },
+                suicidalThoughts: { label: "Suicidal thoughts?", type: "radio", options: ["Yes", "No"] },
+                meditateToday: { label: "Did you meditate today?", type: "radio", options: ["Yes", "No"] },
+                meditationTime: { label: "Time spent meditating (mins):", type: "number" },
+                socialInteraction: { label: "Social interaction today (duration & who):", type: "textarea" },
+                panicAttacks: { label: "Any panic attacks today?", type: "radio", options: ["Yes", "No"] },
+                panicAttackDetails: { label: "Panic attack time/duration (if Yes):", type: "text" },
+                laughedToday: { label: "Did you laugh today?", type: "radio", options: ["Yes", "No"] },
+                journaledToday: { label: "Journaled or reflected mentally?", type: "radio", options: ["Yes", "No"] },
+                gratitude: { label: "List 3 things you are grateful for today:", type: "textarea" }, // New question
+                stressors: { label: "Major stressors today:", type: "textarea" }, // New question
+            },
+            "😴 Sleep Tracking": {
+                sleepStartTime: { label: "Sleep Start Time:", type: "time" },
+                wakeUpTime: { label: "Wake-up Time:", type: "time" },
+                totalSleepDuration: { label: "Total Sleep Duration (e.g., 7 hrs 30 mins):", type: "text" },
+                wakeUpsNight: { label: "Wake-ups during night (number):", type: "number" },
+                reasonWakeUps: { label: "Reason(s) for wake-up(s):", type: "textarea" },
+                sleepQuality: { label: "Quality of sleep (1-10):", type: "select", options: [...Array(10).keys()].map(i => ({ value: i + 1, text: `${i+1}` })) },
+                dreamsRecalled: { label: "Dreams recalled?", type: "radio", options: ["Yes", "No"] },
+                dreamType: { label: "Type of dreams (brief description):", type: "textarea" },
+                napTaken: { label: "Nap taken?", type: "radio", options: ["Yes", "No"] },
+                napDurationTime: { label: "Nap duration and time:", type: "text" },
+                deviceNearby: { label: "Slept with device nearby?", type: "radio", options: ["Yes", "No"], aiHelp: true },
+                sleepEnvironment: { label: "Sleep environment (dark, noise level, temp):", type: "textarea", aiHelp: true },
+            },
+            "🩺 Physical Vitals": {
+                bloodPressure: { label: "Blood Pressure (e.g., 120/80):", type: "text" },
+                heartRate: { label: "Heart Rate (BPM):", type: "number" },
+                pulseRegularity: { label: "Pulse regularity:", type: "radio", options: ["Regular", "Irregular"] },
+                oxygenSaturation: { label: "Oxygen Saturation (SpO₂ %):", type: "number" },
+                bodyTemperature: { label: "Body Temperature (°C):", type: "number", step: "0.1" },
+                respirationRate: { label: "Respiration Rate (Breaths per minute):", type: "number" },
+                painDiscomfort: { label: "Pain/Discomfort location & intensity:", type: "textarea" },
+            },
+            "🔬 Biological & Medical": {
+                bloodSugar: { label: "Blood Sugar (mg/dL):", type: "number" },
+                medicalConditions: { label: "Medical Conditions (Name, Stage/Severity):", type: "textarea" },
+                menstrualCycle: { label: "Menstrual Cycle (Day, Flow Type):", type: "text" },
+                skinCondition: { label: "Skin condition (Rash, Acne, Eczema?):", type: "textarea" },
+                digestiveIssues: { label: "Digestive issues (Constipation, Diarrhea?):", type: "textarea" },
+                allergicReactions: { label: "Allergic reactions today?", type: "radio", options: ["Yes", "No"] },
+                medicationsTaken: { label: "Medications taken (Name, Dose, Time):", type: "textarea" },
+                supplementsTaken: { label: "Supplements taken (Name, Dose, Time):", type: "textarea" },
+            },
+            "🍎 Nutrition & Intake": {
+                mealDetails: { label: "What did you eat for each meal (detail):", type: "textarea" }, // aiFeature removed
+                estimatedCalories: { label: "Estimated total calories:", type: "number" },
+                hydration: { label: "Hydration - Total Water (cups or mL):", type: "text" },
+                caffeinatedDrinks: { label: "Caffeinated drinks consumed (Type & mg):", type: "textarea" },
+                alcoholConsumed: { label: "Alcohol consumed (Type, Volume):", type: "textarea" },
+                junkFood: { label: "Junk food consumed?", type: "radio", options: ["Yes", "No"] },
+                fastedToday: { label: "Fasted today?", type: "radio", options: ["Yes", "No"] },
+                emotionalEating: { label: "Emotional eating triggered?", type: "radio", options: ["Yes", "No"] },
+            },
+            "🏃 Physical Activity & Fitness": {
+                stepsTaken: { label: "Steps taken:", type: "number" },
+                physicalActivities: { label: "Physical activities today (Type & Duration):", type: "textarea" },
+                timeSitting: { label: "Time spent sitting (hours):", type: "number", step: "0.1" },
+                stretchingDone: { label: "Stretching done?", type: "radio", options: ["Yes", "No"] },
+                workoutInjury: { label: "Any workout injury or soreness?", type: "radio", options: ["Yes", "No"] },
+                energyLevel: { label: "Rate your physical energy level (1-10):", type: "select", options: [...Array(10).keys()].map(i => ({ value: i + 1, text: `${i+1}` })) }, // New question
+            },
+            "🌿 Lifestyle & Environment": {
+                timeOutdoors: { label: "Time spent outdoors (minutes):", type: "number" },
+                timeSunlight: { label: "Time spent in direct sunlight (minutes):", type: "number" }, // Label changed
+                screenTime: { label: "Screen time (hours):", type: "number", step: "0.1" },
+                airQuality: { label: "Air quality:", type: "radio", options: ["Stuffy", "Fresh", "Filtered"] },
+                timeNature: { label: "Time around nature?", type: "radio", options: ["Yes", "No"] },
+                socialConnections: { label: "How many meaningful social interactions did you have today?:", type: "number" }, // New question
+                mindfulnessMoments: { label: "Did you experience any moments of pure presence/mindfulness today? Describe briefly:", type: "textarea" }, // New question
+            },
+            "🎯 Habits, Productivity & Focus": {
+                mainTasksCompleted: { label: "Main tasks completed:", type: "textarea", aiHelp: true },
+                hoursWorkedStudied: { label: "Hours worked/studied:", type: "number", step: "0.1" },
+                productivityLevel: { label: "Level of productivity (1-10):", type: "select", options: [...Array(10).keys()].map(i => ({ value: i + 1, text: `${i+1}` })), aiHelp: true },
+                focusLevel: { label: "Focus level during key tasks (1-10):", type: "select", options: [...Array(10).keys()].map(i => ({ value: i + 1, text: `${i+1}` })), aiHelp: true },
+                usedPlanner: { label: "Used planner/to-do list?", type: "radio", options: ["Yes", "No"] },
+                timeHobbies: { label: "Time spent on hobbies:", type: "text" },
+                learningGrowth: { label: "What new thing did you learn or accomplish today?:", type: "textarea" }, // New question
+            }
+        };
+
+        const formContainer = document.getElementById('form-fields-container');
+        Object.entries(formStructure).forEach(([sectionTitle, fields]) => {
+            const fieldset = document.createElement('fieldset');
+            fieldset.className = "bg-white rounded-xl shadow-sm border border-gray-200"; // Base styling
+
+            const header = document.createElement('div');
+            header.className = "collapsible-header";
+            header.innerHTML = `
+                <h2 class="text-2xl font-semibold text-gray-700">${sectionTitle}</h2>
+                <svg class="collapsible-icon w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                </svg>
+            `;
+            header.setAttribute('aria-expanded', 'true'); // Initially expanded
+            fieldset.appendChild(header);
+
+            const fieldsWrapper = document.createElement('div');
+            fieldsWrapper.className = "collapsible-content space-y-4"; // Apply collapsible content styles
+            fieldsWrapper.setAttribute('aria-hidden', 'false'); // Initially visible
+
+            Object.entries(fields).forEach(([id, config]) => {
+                const group = document.createElement('div');
+                const labelWrapper = document.createElement('div');
+                labelWrapper.className = "flex items-center justify-between";
+                const label = document.createElement('label');
+                label.htmlFor = id;
+                label.className = "block text-sm font-medium text-gray-700";
+                label.textContent = config.label;
+                labelWrapper.appendChild(label);
+                if (config.aiHelp) {
+                    const aiButton = document.createElement('button');
+                    aiButton.type = 'button';
+                    aiButton.className = 'ai-button';
+                    aiButton.textContent = 'AI Help';
+                    aiButton.onclick = () => generateExplanation(id, config.label);
+                    labelWrapper.appendChild(aiButton);
+                }
+                group.appendChild(labelWrapper);
+                let input;
+                const commonClasses = "mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm";
+                switch (config.type) {
+                    case 'textarea':
+                        input = document.createElement('textarea');
+                        input.rows = 3;
+                        break;
+                    case 'select':
+                        input = document.createElement('select');
+                        const defaultOption = document.createElement('option');
+                        defaultOption.value = "";
+                        defaultOption.textContent = "Select...";
+                        input.appendChild(defaultOption);
+                        config.options.forEach(opt => {
+                            const option = document.createElement('option');
+                            option.value = opt.value;
+                            option.textContent = opt.text || opt.value;
+                            input.appendChild(option);
+                        });
+                        if (config.hasOther) {
+                            input.onchange = (e) => {
+                                const otherInput = document.getElementById(id + 'Other');
+                                otherInput.style.display = e.target.value === 'Other' ? 'block' : 'none';
+                            };
+                        }
+                        break;
+                    case 'radio':
+                         const radioGroup = document.createElement('div');
+                         radioGroup.className = "flex items-center space-x-4 mt-2";
+                         config.options.forEach(opt => {
+                             const radioWrapper = document.createElement('div');
+                             radioWrapper.className = "flex items-center";
+                             const radioInput = document.createElement('input');
+                             radioInput.type = "radio";
+                             radioInput.id = `${id}_${opt.toLowerCase()}`;
+                             radioInput.name = id;
+                             radioInput.value = opt;
+                             radioInput.className = "h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500";
+                             const radioLabel = document.createElement('label');
+                             radioLabel.htmlFor = `${id}_${opt.toLowerCase()}`;
+                             radioLabel.textContent = opt;
+                             radioLabel.className = "ml-2 block text-sm text-gray-900";
+                             radioWrapper.appendChild(radioInput);
+                             radioWrapper.appendChild(radioLabel);
+                             radioGroup.appendChild(radioWrapper);
+                         });
+                         group.appendChild(radioGroup);
+                         break;
+                    default:
+                        input = document.createElement('input');
+                        input.type = config.type;
+                        if(config.step) input.step = config.step;
+                        break;
+                }
+                if (input) {
+                    input.id = id;
+                    input.name = id;
+                    input.className = commonClasses;
+                    group.appendChild(input);
+                }
+                if (config.hasOther) {
+                    const otherInput = document.createElement('input');
+                    otherInput.type = 'text';
+                    otherInput.id = id + 'Other';
+                    otherInput.name = id + 'Other';
+                    otherInput.className = commonClasses + " mt-2";
+                    otherInput.placeholder = "Please specify";
+                    otherInput.style.display = 'none';
+                    group.appendChild(otherInput);
+                }
+                fieldsWrapper.appendChild(group);
+            });
+            fieldset.appendChild(fieldsWrapper);
+            formContainer.appendChild(fieldset);
+
+            // Add toggle functionality
+            header.onclick = () => {
+                const isExpanded = header.getAttribute('aria-expanded') === 'true';
+                header.setAttribute('aria-expanded', !isExpanded);
+                fieldsWrapper.setAttribute('aria-hidden', isExpanded);
+                fieldsWrapper.classList.toggle('collapsed', isExpanded);
+                header.querySelector('.collapsible-icon').classList.toggle('rotated', isExpanded);
+                // Adjust max-height for smooth collapse/expand
+                if (!isExpanded) {
+                    fieldsWrapper.style.maxHeight = fieldsWrapper.scrollHeight + "px";
+                } else {
+                    fieldsWrapper.style.maxHeight = '0';
+                }
+            };
+        });
+        const dateInput = document.createElement('input');
+        dateInput.type = 'hidden';
+        dateInput.id = 'dateEntry'; // This will store the full ISO timestamp for uniqueness
+        dateInput.name = 'dateEntry';
+        formContainer.appendChild(dateInput);
+
+        // --- DATA HANDLING ---
+        // Function to save a new journal entry
+        async function saveJournalEntry(data) {
+            journalDataCache = loadJournalEntries(); // Reload to ensure latest data
+
+            // Assign a unique ID using the full ISO string of the current date and time
+            // This allows for multiple entries on the same day, differentiated by time.
+            const entryId = new Date().toISOString();
+            journalDataCache.push({ id: entryId, ...data });
+
+            saveJournalEntries(journalDataCache); // Save to local storage
+            updateUI(); // Update UI after saving
+        }
+
+        // Function to delete a journal entry by its ID
+        async function deleteJournalEntry(docId) {
+            journalDataCache = loadJournalEntries(); // Reload to ensure latest data
+            journalDataCache = journalDataCache.filter(entry => entry.id !== docId);
+            saveJournalEntries(journalDataCache); // Save updated array to local storage
+            updateUI(); // Update UI after deleting
+        }
+
+        // Function to update all relevant UI components
+        function updateUI() {
+            // Sort by date (and time) descending for display in saved entries
+            journalDataCache = loadJournalEntries().sort((a, b) => new Date(b.id) - new Date(a.id));
+            filterEntries(); // Call filter entries on UI update
+        }
+
+        // --- SAVED ENTRIES DISPLAY & FILTERING ---
+        function updateSavedEntries(dataToDisplay) {
+            const container = document.getElementById('savedEntriesContainer');
+            container.innerHTML = ''; // Clear previous content
+
+            if (dataToDisplay.length === 0) {
+                const noEntriesEl = document.createElement('p');
+                noEntriesEl.id = 'no-saved-entries';
+                noEntriesEl.textContent = 'No matching entries found.';
+                noEntriesEl.className = 'text-gray-600';
+                container.appendChild(noEntriesEl);
+                return;
+            }
+
+            dataToDisplay.forEach(entry => {
+                const entryWrapper = document.createElement('div');
+                entryWrapper.className = 'border border-gray-200 rounded-lg';
+
+                const header = document.createElement('div');
+                header.className = 'p-4 cursor-pointer flex justify-between items-center bg-gray-50 hover:bg-gray-100 rounded-t-lg';
+                const entryDate = new Date(entry.id);
+                const formattedDateTime = entryDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                const expandText = document.createElement('span');
+                expandText.className = 'text-gray-400 text-sm';
+                expandText.textContent = 'Click to expand';
+                header.innerHTML = `<h4 class="font-semibold text-indigo-700">${formattedDateTime}</h4>`;
+                header.appendChild(expandText);
+
+                const content = document.createElement('div');
+                content.className = 'p-4 border-t border-gray-200 entry-content'; // Apply initial max-height 0
+
+                let detailsHTML = '<h5 class="font-semibold text-lg mb-2">AI Summary</h5>';
+                detailsHTML += `<div class="prose prose-sm max-w-none mb-6">${entry.aiSummary ? marked.parse(entry.aiSummary) : 'No summary available.'}</div>`;
+
+                if (entry.dailyInsight) {
+                    detailsHTML += `<h5 class="font-semibold text-lg mb-2 mt-4">✨ Daily Insight & Recommendations</h5>`;
+                    detailsHTML += `<div class="prose prose-sm max-w-none mb-6">${marked.parse(entry.dailyInsight)}</div>`;
+                }
+
+                detailsHTML += '<h5 class="font-semibold text-lg mb-2">Your Answers</h5><dl class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-2 text-sm">';
+
+                const { aiSummary, id: entryUniqueId, dailyInsight, ...answers } = entry;
+
+                for (const [key, value] of Object.entries(answers)) {
+                     if (value && key !== 'dateEntry') {
+                         const fieldConfig = Object.values(formStructure).flatMap(s => Object.entries(s)).find(([formId, conf]) => formId === key);
+                         const label = fieldConfig ? fieldConfig[1].label.replace(':', '') : key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                         detailsHTML += `<div class="flex flex-col"><dt class="font-medium text-gray-500">${label}</dt><dd class="text-gray-800">${value}</dd></div>`;
+                     }
+                }
+                detailsHTML += '</dl>';
+
+                const deleteButton = document.createElement('button');
+                deleteButton.textContent = 'Delete Entry';
+                deleteButton.className = 'mt-6 bg-red-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-600 transition-colors duration-300';
+                deleteButton.onclick = (e) => {
+                    e.stopPropagation();
+                    if (deleteButton.textContent === 'Delete Entry') {
+                         deleteButton.textContent = 'Confirm Deletion?';
+                         deleteButton.classList.remove('bg-red-500', 'hover:bg-red-600');
+                         deleteButton.classList.add('bg-yellow-500', 'hover:bg-yellow-600');
+                         setTimeout(() => {
+                            if (deleteButton.textContent === 'Confirm Deletion?') {
+                                deleteButton.textContent = 'Delete Entry';
+                                deleteButton.classList.add('bg-red-500', 'hover:bg-red-600');
+                                deleteButton.classList.remove('bg-yellow-500', 'hover:bg-yellow-600');
+                            }
+                         }, 3000);
+                    } else {
+                         deleteJournalEntry(entry.id);
+                    }
+                };
+
+                content.innerHTML = detailsHTML;
+                content.appendChild(deleteButton);
+
+                header.onclick = () => {
+                    const isExpanded = content.classList.toggle('expanded');
+                    content.style.maxHeight = isExpanded ? content.scrollHeight + "px" : '0px';
+                    expandText.textContent = isExpanded ? 'Click to collapse' : 'Click to expand';
+                };
+
+                entryWrapper.appendChild(header);
+                entryWrapper.appendChild(content);
+                container.appendChild(entryWrapper);
+            });
+        }
+
+        function filterEntries() {
+            const searchText = document.getElementById('entrySearchInput').value.toLowerCase();
+            const filterDate = document.getElementById('entryFilterDate').value;
+
+            const filteredData = journalDataCache.filter(entry => {
+                const entryDate = new Date(entry.id).toISOString().split('T')[0]; // GetYYYY-MM-DD
+                const matchesDate = !filterDate || entryDate === filterDate;
+
+                const matchesSearch = Object.values(entry).some(value =>
+                    String(value).toLowerCase().includes(searchText)
+                );
+
+                return matchesDate && matchesSearch;
+            });
+            updateSavedEntries(filteredData);
+        }
+
+        function clearFilters() {
+            document.getElementById('entrySearchInput').value = '';
+            document.getElementById('entryFilterDate').value = '';
+            filterEntries(); // Re-apply filters, which will now show all
+        }
+
+
+        window.switchTab = (tabName) => {
+            document.getElementById('content-journal').classList.toggle('hidden', tabName !== 'journal');
+            document.getElementById('content-saved').classList.toggle('hidden', tabName !== 'saved');
+            document.getElementById('content-guided').classList.toggle('hidden', tabName !== 'guided');
+            
+            document.getElementById('tab-journal').classList.toggle('tab-active', tabName === 'journal');
+            document.getElementById('tab-saved').classList.toggle('tab-active', tabName === 'saved');
+            document.getElementById('tab-guided').classList.toggle('tab-active', tabName === 'guided');
+
+            // If switching to saved, ensure UI is updated
+            if (tabName === 'saved') {
+                updateUI();
+            } else if (tabName === 'guided') {
+                // Clear guided chat history when switching to the tab
+                guidedChatHistory = [];
+                document.getElementById('guidedConversationDisplay').innerHTML = '<div class="text-gray-500 italic">Start by typing your thoughts below and click "Get AI Follow-up Question".</div>';
+                document.getElementById('userGuidedInput').value = '';
+            }
+        }
+
+        // --- FORM SUBMISSION & AI ---
+        document.getElementById('healthJournalForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const form = event.target;
+            const formData = {};
+            new FormData(form).forEach((value, key) => {
+                if (value) {
+                    formData[key] = value;
+                }
+            });
+
+            form.querySelectorAll('input[type="radio"]').forEach(radio => {
+                if (radio.checked) {
+                    formData[radio.name] = radio.value;
+                } else if (!formData.hasOwnProperty(radio.name)) {
+                    formData[radio.name] = null;
+                }
+            });
+
+            const currentTimestamp = new Date().toISOString();
+            document.getElementById('dateEntry').value = currentTimestamp;
+            formData.dateEntry = currentTimestamp;
+
+            document.getElementById('loading').style.display = 'flex';
+            const outputEl = document.getElementById('journalOutput');
+            const aiSummaryContentEl = document.getElementById('aiSummaryContent');
+            const aiInsightContentEl = document.getElementById('aiInsightContent');
+
+            outputEl.classList.add('hidden');
+            aiSummaryContentEl.innerHTML = '';
+            aiInsightContentEl.innerHTML = '';
+
+            try {
+                const summaryPrompt = `You are an insightful and empathetic AI journaling assistant. Analyze the user's health data to generate a thoughtful, narrative journal entry from *my own first-person perspective*, as if *I am reflecting on my day*.
+                **Your goal is to tell a story about my day based on the data, not just list facts.** Use descriptive language, connect different aspects of my health (e.g., how sleep influenced my mood, or how activity impacted my energy), and weave in observations that feel personal and reflective.
+
+                **Analysis Guidelines:**
+                1.  **Synthesize into a Narrative:** Weave key data points and their connections into a flowing, cohesive story of *my* day.
+                2.  **Emotional and Experiential Depth:** Describe not just *what* happened, but *how it felt*. Use words that convey emotions and sensory details (e.g., instead of "mood was 7," try "I felt a gentle calm settle over me, a solid 7 on my mood scale").
+                3.  **Identify Connections:** Subtly link different data points to show cause and effect or related experiences (e.g., "The longer sleep I got last night seemed to lift my spirits today").
+                4.  **Highlight Positives with Warmth:** Start with a positive acknowledgment of strengths, good habits, or moments of joy, expressed with warmth and personal ownership.
+                5.  **Address Challenges with Empathy:** Acknowledge challenges or areas for growth with deep empathy and understanding, avoiding judgment. Phrase them as *my* experiences.
+                6.  **Offer a Gentle Insight/Reflection:** Conclude with a single, gentle, actionable insight or a thoughtful question for *my* future reflection. Avoid medical advice.
+                7.  **Tone:** Empathetic, insightful, reflective, encouraging, and supportive. The tone should genuinely sound like a trusted confidant writing *my* journal entry.
+                **User's Data:**
+                \`\`\`json
+                ${JSON.stringify(formData, null, 2)}
+                \`\`\`
+                Generate the journal entry based on this data. Format it with Markdown.`;
+
+                const chatHistorySummary = [{ role: "user", parts: [{ text: summaryPrompt }] }];
+                const apiKey = "AIzaSyBfTuirqf9RYNfSlqarnMrRXl7sUSV4nGk";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+                const responseSummary = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: chatHistorySummary })
+                });
+
+                if (!responseSummary.ok) throw new Error(`Summary API request failed with status ${responseSummary.status}`);
+                const resultSummary = await responseSummary.json();
+
+                let aiSummaryText = 'No summary available.';
+                if (resultSummary.candidates && resultSummary.candidates[0]?.content?.parts[0]?.text) {
+                    aiSummaryText = resultSummary.candidates[0].content.parts[0].text;
+                    aiSummaryContentEl.innerHTML = marked.parse(aiSummaryText);
+                    formData.aiSummary = aiSummaryText;
+                } else {
+                    console.warn("No summary found in AI response.");
+                    aiSummaryContentEl.innerHTML = `<p class="text-gray-500">Could not generate summary.</p>`;
+                    formData.aiSummary = null;
+                }
+
+                const insightPrompt = `Based on the following user's journal data and the generated AI summary, provide 1-3 thoughtful, actionable recommendations. Each recommendation should strictly follow this journaling formal, including the titles and sections:
+
+**Prioritize Morning Hydration and Focus:**
+Recommendation: [Concise observation and recommendation]
+Actionable Tip: [Specific, easy-to-follow steps]
+Why this helps: [Brief explanation of the benefit]
+
+**Integrate Breathing Exercises into Your Morning Routine:**
+Recommendation: [Concise observation and recommendation]
+Actionable Tip: [Specific, easy-to-follow steps]
+Why this helps: [Brief explanation of the benefit]
+
+**Track and Celebrate Small Wins:**
+Recommendation: [Concise observation and recommendation]
+Actionable Tip: [Specific, easy-to-follow steps]
+Why this helps: [Brief explanation of the benefit]
+
+Ensure the recommendations are highly relevant to the user's input, encouraging, and avoid medical advice. Use Markdown formatting for bolding, headings, and lists.
+
+**Journal Data:**
+\`\`\`json
+${JSON.stringify(formData, null, 2)}
+\`\`\`
+**AI Summary:**
+\`\`\`
+${aiSummaryText}
+\`\`\`
+`;
+
+                const chatHistoryInsight = [{ role: "user", parts: [{ text: insightPrompt }] }];
+                const responseInsight = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: chatHistoryInsight })
+                });
+
+                if (!responseInsight.ok) throw new Error(`Insight API request failed with status ${responseInsight.status}`);
+                const resultInsight = await responseInsight.json();
+
+                if (resultInsight.candidates && resultInsight.candidates[0]?.content?.parts[0]?.text) {
+                    aiInsightContentEl.innerHTML = `<strong>✨ Daily Insights & Recommendations:</strong><br><br>${marked.parse(resultInsight.candidates[0].content.parts[0].text)}`;
+                    formData.dailyInsight = resultInsight.candidates[0].content.parts[0].text;
+                } else {
+                    console.warn("No daily insight found in AI response.");
+                    aiInsightContentEl.innerHTML = '<p class="text-gray-500">Could not generate daily insight.</p>';
+                    formData.dailyInsight = null;
+                }
+
+                outputEl.classList.remove('hidden');
+                await saveJournalEntry(formData);
+                form.reset();
+                document.getElementById('dateEntry').value = new Date().toISOString();
+
+            } catch (error) {
+                console.error("Error during AI generation or saving:", error);
+                outputEl.innerHTML = `<p class="text-red-600"><strong>Error:</strong> Could not generate journal entry. ${error.message}</p>`;
+                outputEl.classList.remove('hidden');
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        });
+
+        // --- AI EXPLANATION MODAL ---
+        const modal = document.getElementById('aiExplanationModal');
+        const closeModalBtn = document.getElementById('closeModal');
+        closeModalBtn.onclick = () => modal.style.display = 'none';
+        window.onclick = (event) => { if (event.target == modal) modal.style.display = "none"; }
+
+        window.generateExplanation = async (fieldId, fieldLabel) => {
+            const modalTitle = document.getElementById('modalTitle');
+            const modalBody = document.getElementById('modalBody');
+            modalTitle.innerText = `Understanding: ${fieldLabel.replace(':', '')}`;
+            modalBody.innerHTML = '<div class="flex justify-center items-center"><div class="spinner"></div></div>'; // Show spinner
+            modal.style.display = 'block';
+            const prompt = `Provide a comprehensive explanation for "${fieldLabel.replace(':', '')}" in the context of a daily health journal. Include detailed reasons why it's important to track this specific metric or information for overall well-being. If it involves a rating scale (like 1-10), elaborate on what low, medium, and high ratings might mean, offering specific examples of feelings, behaviors, or states associated with each. Aim for a response that offers genuine understanding and is easy to grasp for a general audience.
+            Example for "Mood Rate (1-10)": "Tracking your mood rate helps you identify patterns and understand what factors influence your emotional state over time. A '1' might mean feeling extremely low, sad, or overwhelmed, like 'I felt drained and couldn't find joy in anything.' A '5' could be neutral or fluctuating, like 'My mood was okay, neither particularly good nor bad.' A '10' indicates feeling exceptionally happy, energetic, and positive, like 'I felt vibrant and optimistic all day!'"`;
+            try {
+                const chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
+                const apiKey = "AIzaSyBfTuirqf9RYNfSlqarnMrRXl7sUSV4nGk"; // API Key is automatically provided by Canvas
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: chatHistory })
+                });
+                if (!response.ok) throw new Error('API request failed');
+                const result = await response.json();
+                if (result.candidates && result.candidates[0]?.content?.parts[0]?.text) {
+                    modalBody.innerHTML = marked.parse(result.candidates[0].content.parts[0].text); // Use marked.parse for markdown rendering
+                } else { throw new Error('Invalid API response'); }
+            } catch (error) {
+                modalBody.innerHTML = `<p class="text-red-500">Could not generate explanation. Please try again later. ${error.message}</p>`;
+                console.error("AI Explanation Error:", error);
+            }
+        }
+
+        // --- Combined AI Recommendations Function ---
+        window.getCombinedAIRecommendations = async () => {
+            const form = document.getElementById('healthJournalForm');
+            const formData = {};
+            new FormData(form).forEach((value, key) => {
+                if (value) {
+                    formData[key] = value;
+                }
+            });
+            form.querySelectorAll('input[type="radio"]').forEach(radio => {
+                if (radio.checked) {
+                    formData[radio.name] = radio.value;
+                } else if (!formData.hasOwnProperty(radio.name)) {
+                    formData[radio.name] = null;
+                }
+            });
+
+            const modalTitle = document.getElementById('modalTitle');
+            const modalBody = document.getElementById('modalBody');
+            modalTitle.innerText = `✨ Daily Recommendations`;
+            modalBody.innerHTML = '<div class="flex justify-center items-center"><div class="spinner"></div></div>'; // Show spinner
+            modal.style.display = 'block';
+
+            const prompt = `Based on the following user's health journal data, provide comprehensive recommendations covering Self-Care Activities, Nutritional Insights/Meal Ideas, and Coping Tips. Structure your response with clear Markdown headings for each section. Ensure the recommendations are highly relevant to the provided data, actionable, encouraging, and avoid medical advice.
+
+            **Self-Care Activities (2-3 suggestions):**
+            Focus on variety (mental, physical, creative, social, mindfulness-based). Example:
+            1.  **Mindful Movement:** Take a 15-minute gentle walk, focusing on the sensation of your feet on the ground and the sounds around you. This helps ground you in the present moment.
+
+            **Nutritional Insights / Meal Ideas (1-2 suggestions based on meal details if provided):**
+            Provide a concise, encouraging nutritional observation OR suggest simple, balanced, and healthy meal ideas. Example:
+            * "It looks like you had a good source of fiber! Consider adding healthy fats to boost satiety."
+            * "For a quick and nourishing meal, try a colorful stir-fry with lean protein."
+
+            **Coping Tips (2-3 suggestions based on felt emotions/stressors if provided):**
+            Offer distinct, actionable coping mechanisms or relaxation techniques. Focus on gentle, supportive advice. Example:
+            * For anxiety: **5-4-3-2-1 Grounding Technique:** Name 5 things you can see, 4 things you can feel, etc.
+
+            **User's Data:**
+            \`\`\`json
+            ${JSON.stringify(formData, null, 2)}
+            \`\`\`
+            `;
+
+            try {
+                const chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
+                const apiKey = "AIzaSyBfTuirqf9RYNfSlqarnMrRXl7sUSV4nGk";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: chatHistory })
+                });
+                if (!response.ok) throw new Error('API request failed');
+                const result = await response.json();
+                if (result.candidates && result.candidates[0]?.content?.parts[0]?.text) {
+                    modalBody.innerHTML = marked.parse(result.candidates[0].content.parts[0].text);
+                } else { throw new Error('Invalid API response'); }
+            } catch (error) {
+                modalBody.innerHTML = `<p class="text-red-500">Could not generate recommendations. Please try again later. ${error.message}</p>`;
+                console.error("Combined AI Recommendations Error:", error);
+            }
+        };
+
+        // --- Export Functionality ---
+        window.exportEntries = () => {
+            const allEntries = loadJournalEntries();
+            if (allEntries.length === 0) {
+                showMessageBox("No Entries", "There are no saved entries to export.");
+                return;
+            }
+
+            let exportContent = `# My Health Journal Entries\n\n`;
+
+            allEntries.forEach(entry => {
+                const entryDate = new Date(entry.id);
+                const formattedDateTime = entryDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                exportContent += `---\n\n`;
+                exportContent += `## Entry Date: ${formattedDateTime}\n\n`;
+
+                if (entry.aiSummary) {
+                    exportContent += `### AI Summary\n${entry.aiSummary}\n\n`;
+                }
+                if (entry.dailyInsight) {
+                    exportContent += `### Daily Insights & Recommendations\n${entry.dailyInsight}\n\n`;
+                }
+
+                exportContent += `### Your Answers\n`;
+                const { aiSummary, id: entryUniqueId, dailyInsight, ...answers } = entry;
+                for (const [key, value] of Object.entries(answers)) {
+                    if (value && key !== 'dateEntry') {
+                        const fieldConfig = Object.values(formStructure).flatMap(s => Object.entries(s)).find(([formId, conf]) => formId === key);
+                        const label = fieldConfig ? fieldConfig[1].label.replace(':', '') : key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                        exportContent += `- **${label}:** ${value}\n`;
+                    }
+                }
+                exportContent += `\n`;
+            });
+
+            const blob = new Blob([exportContent], { type: 'text/markdown;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'my_health_journal.md';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showMessageBox("Export Complete", "Your journal entries have been exported as 'my_health_journal.md'.");
+        };
+
+        // --- Guided Journaling Logic ---
+        const guidedConversationDisplay = document.getElementById('guidedConversationDisplay');
+        const userGuidedInput = document.getElementById('userGuidedInput');
+        const guidedLoading = document.getElementById('guidedLoading');
+
+        async function getGuidedQuestion() {
+            const userInput = userGuidedInput.value.trim();
+            if (!userInput) {
+                showMessageBox("Input Required", "Please type something before asking for an AI follow-up question.");
+                return;
+            }
+
+            // Add user input to history and display
+            guidedChatHistory.push({ role: "user", parts: [{ text: userInput }] });
+            appendMessageToGuidedDisplay('user', userInput);
+            userGuidedInput.value = ''; // Clear input field
+
+            guidedLoading.style.display = 'flex';
+
+            try {
+                // System instruction modified to combine tip and question into one paragraph
+                const systemInstruction = {
+                    role: "user",
+                    parts: [{
+                        text: `You are an empathetic and insightful AI journaling guide. Your goal is to help the user reflect deeper on their thoughts and feelings.
+                        For each user input, you MUST provide 1-2 concise, actionable coping tips or suggestions directly relevant to the emotions, challenges, or situations expressed in the user's last message and the overall conversation. After providing the tip(s), seamlessly transition into one thoughtful, open-ended follow-up question to encourage further exploration of their input, current feelings, or potential triggers/solutions.
+                        
+                        Combine the tip(s) and the follow-up question into a single, cohesive paragraph. Ensure you reference the user's specific input in your question for context. Avoid medical advice. Maintain an empathetic and supportive tone. Do NOT use headings like "Coping Tip" or "Follow-up Question".
+                        `
+                    }]
+                };
+
+                // The conversation history including the new system instruction
+                const conversationToSend = [systemInstruction, ...guidedChatHistory];
+
+                const apiKey = "AIzaSyBfTuirqf9RYNfSlqarnMrRXl7sUSV4nGk";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: conversationToSend })
+                });
+
+                if (!response.ok) throw new Error(`Guided Journaling API request failed with status ${response.status}`);
+                const result = await response.json();
+
+                if (result.candidates && result.candidates[0]?.content?.parts[0]?.text) {
+                    const aiResponseText = result.candidates[0].content.parts[0].text;
+                    guidedChatHistory.push({ role: "model", parts: [{ text: aiResponseText }] });
+                    appendMessageToGuidedDisplay('ai', aiResponseText);
+                } else {
+                    console.warn("No AI response for guided journaling.");
+                    appendMessageToGuidedDisplay('ai', 'I am unable to generate a response at this moment. Please try again.');
+                }
+            } catch (error) {
+                console.error("Guided Journaling Error:", error);
+                appendMessageToGuidedDisplay('ai', `An error occurred: ${error.message}. Please try again.`);
+            } finally {
+                guidedLoading.style.display = 'none';
+                guidedConversationDisplay.scrollTop = guidedConversationDisplay.scrollHeight; // Scroll to bottom
+            }
+        }
+
+        function appendMessageToGuidedDisplay(sender, message) {
+            const messageDiv = document.createElement('div');
+            // Use flexbox for message alignment
+            messageDiv.className = `p-3 rounded-lg max-w-[85%] ${sender === 'user' ? 'bg-indigo-100 self-end ml-auto' : 'bg-gray-100 self-start mr-auto'}`;
+            messageDiv.innerHTML = marked.parse(message); // Parse Markdown
+            guidedConversationDisplay.appendChild(messageDiv);
+        }
+
+        // Custom Message Box (replacement for alert())
+        function showMessageBox(title, message) {
+            const modalHtml = `
+                <div id="customMessageBox" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+                    <div class="relative p-5 border w-full max-w-sm shadow-lg rounded-md bg-white">
+                        <div class="mt-3 text-center">
+                            <h3 class="text-lg leading-6 font-medium text-gray-900">${title}</h3>
+                            <div class="mt-2 px-7 py-3">
+                                <p class="text-sm text-gray-600">${message}</p>
+                            </div>
+                            <div class="items-center px-4 py-3">
+                                <button id="closeMessageBox" class="px-4 py-2 bg-indigo-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                                    OK
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            document.getElementById('closeMessageBox').onclick = () => {
+                document.getElementById('customMessageBox').remove();
+            };
+        }
+
+        // Initial load and UI update
+        document.addEventListener('DOMContentLoaded', updateUI);
+    </script>
+</body>
+</html>
